@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USTP Campus Navigator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{url_for('static', filename='css/main.css')}}">
+</head>
+<body>
+
+<div class="app-container">
+    <aside class="sidebar" id="sidebar">
+        <div class="header">
+            <h1>
+                <i class="fa-solid fa-location-dot"></i>
+
+                <span class="hide-when-closed">USTP Nav</span>
+
+                <button id="toggle-btn" title="Toggle Sidebar">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3">
+                        <path d="M383-480 200-664l56-56 240 240-240 240-56-56 183-184Zm264 0L464-664l56-56 240 240-240 240-56-56 183-184Z"/>
+                    </svg>
+                </button>
+            </h1>
+            <p class="hide-when-closed">Find the quickest walking route on campus.</p>
+        </div>
+
+        <div class="hide-when-closed">
+            <div class="control-group">
+                <label for="start_point"><i class="fa-solid fa-play-circle"></i> Start Location</label>
+                <select id="start_point">
+                    {% for b in buildings %}
+                    <option value="{{ b }}">{{ b }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="end_point"><i class="fa-solid fa-stop-circle"></i> Destination</label>
+                <select id="end_point">
+                    {% for b in buildings %}
+                        <option value="{{ b }}" {% if loop.index == 2 %}selected{% endif %}>{{ b }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button id="findRouteBtn" class="btn-navigate">
+                <i class="fa-solid fa-route"></i> Find Route
+            </button>
+
+            <div id="message-area"></div>
+        </div>
+    </aside>
+
+    <main class="map-wrapper">
+        <div id="map-display">
+            {{ initial_map|safe }}
+        </div>
+    </main>
+</div>
+
+<script>
+    // Elements
+    const btn = document.getElementById('findRouteBtn');
+    const mapDisplay = document.getElementById('map-display');
+    const msgArea = document.getElementById('message-area');
+    const toggleButton = document.getElementById('toggle-btn');
+    const sidebar = document.getElementById('sidebar');
+
+    // Store original button text
+    const originalBtnText = btn ? btn.innerHTML : '';
+
+    // Toggle Sidebar Function
+    toggleButton.addEventListener('click', () => {
+        sidebar.classList.toggle('close');
+        toggleButton.classList.toggle('rotate');
+
+        // HACK: Trigger a resize event so Leaflet/Maps adjust to the new width
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 300);
+    });
+
+    // Find Route Function
+    if(btn) {
+        btn.addEventListener('click', async () => {
+            const start = document.getElementById('start_point').value;
+            const end = document.getElementById('end_point').value;
+
+            // UI Loading State
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Calculating...';
+            msgArea.style.display = 'none';
+
+            try {
+                const response = await fetch('/navigate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ start_point: start, end_point: end })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Inject new map HTML
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = data.map_html;
+
+                    mapDisplay.innerHTML = '';
+                    Array.from(tempDiv.children).forEach(child => {
+                         mapDisplay.appendChild(child);
+                    });
+
+                    // Re-execute scripts
+                    Array.from(mapDisplay.querySelectorAll('script')).forEach( oldScript => {
+                        const newScript = document.createElement('script');
+                        Array.from(oldScript.attributes).forEach( attr => newScript.setAttribute(attr.name, attr.value) );
+                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    });
+                } else {
+                    throw new Error(data.error || 'Unknown error occurred');
+                }
+
+            } catch (error) {
+                msgArea.innerText = error.message;
+                msgArea.className = 'error-msg';
+                msgArea.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnText;
+            }
+        });
+    }
+</script>
+
+</body>
+</html>

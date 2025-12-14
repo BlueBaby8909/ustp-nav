@@ -1,0 +1,221 @@
+/* VARIABLES */
+:root {
+    --bg-primary: #121212;
+    --bg-secondary: #1e1e1e;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --accent-color: #00e676;
+    --accent-hover: #00c853;
+    --danger-color: #cf6679;
+    --hover-clr: #333;
+}
+
+/* RESET */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+
+/* LAYOUT */
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* SIDEBAR */
+#sidebar {
+    transition: width 300ms ease-in-out, padding 300ms ease;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.sidebar {
+    box-sizing: border-box;
+    width: 350px; /* OPEN WIDTH */
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-secondary);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+/* --- CLOSED STATE FIXES --- */
+
+#sidebar.close {
+    width: 60px; /* Reduced from 80px to 60px (Slimmer) */
+    padding: 20px 0; /* Remove side padding to center items perfectly */
+}
+
+/* Hide the main content */
+#sidebar.close .hide-when-closed {
+    opacity: 0;
+    pointer-events: none;
+    display: none;
+}
+
+/* Hide the App Logo Icon when closed so only the arrow remains */
+#sidebar.close .header i.fa-location-dot {
+    display: none;
+}
+
+/* Center the Toggle Button in the narrow bar */
+#sidebar.close .header h1 {
+    justify-content: center; /* Centers the button horizontally */
+    gap: 0;
+    padding: 0;
+    margin: 0;
+}
+
+#sidebar.close #toggle-btn {
+    margin: 0 auto; /* Ensures button is centered */
+}
+
+.header {
+    margin-bottom: 40px;
+}
+
+.header h1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Pushes button to the right */
+    gap: 10px;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.header i {
+    color: var(--accent-color);
+}
+
+.header p {
+    margin-top: 5px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* FORM */
+.control-group {
+    margin-bottom: 25px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+select {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    border: 1px solid #333;
+    border-radius: 8px;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2300e676%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px auto;
+}
+
+select:focus {
+    border-color: var(--accent-color);
+}
+
+/* BUTTONS */
+.btn-navigate {
+    width: 100%;
+    padding: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #000;
+    background-color: var(--accent-color);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-navigate:hover {
+    background-color: var(--accent-hover);
+}
+
+.btn-navigate:disabled {
+    background-color: var(--text-secondary);
+    cursor: not-allowed;
+}
+
+#toggle-btn {
+    padding: 8px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+#toggle-btn:hover {
+    background-color: var(--hover-clr);
+}
+
+/* Rotate Animation */
+#toggle-btn svg {
+    transition: transform 300ms ease;
+}
+
+/* When the sidebar is closed, rotate the arrow */
+.rotate svg {
+    transform: rotate(180deg);
+}
+
+/* MESSAGES */
+#message-area {
+    margin-top: 20px;
+    padding: 10px;
+    text-align: center;
+    border-radius: 5px;
+    display: none;
+}
+
+.error-msg {
+    color: var(--danger-color);
+    background-color: rgba(207, 102, 121, 0.2);
+    border: 1px solid var(--danger-color);
+}
+
+/* MAP */
+.map-wrapper {
+    flex-grow: 1;
+    position: relative;
+    background-color: #000;
+    transition: all 0.3s ease; /* Smooth resize */
+}
+
+#map-display {
+    width: 100%;
+    height: 100%;
+}
