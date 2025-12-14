@@ -41,7 +41,7 @@ html, body {
 
 .sidebar {
     box-sizing: border-box;
-    width: 350px;
+    width: 350px; /* OPEN WIDTH */
     padding: 30px;
     display: flex;
     flex-direction: column;
@@ -52,9 +52,10 @@ html, body {
 }
 
 /* --- CLOSED STATE FIXES --- */
+
 #sidebar.close {
-    width: 60px;
-    padding: 20px 0;
+    width: 60px; /* Reduced from 80px to 60px (Slimmer) */
+    padding: 20px 0; /* Remove side padding to center items perfectly */
 }
 
 /* Hide the main content */
@@ -71,14 +72,14 @@ html, body {
 
 /* Center the Toggle Button in the narrow bar */
 #sidebar.close .header h1 {
-    justify-content: center;
+    justify-content: center; /* Centers the button horizontally */
     gap: 0;
     padding: 0;
     margin: 0;
 }
 
 #sidebar.close #toggle-btn {
-    margin: 0 auto;
+    margin: 0 auto; /* Ensures button is centered */
 }
 
 .header {
@@ -88,7 +89,7 @@ html, body {
 .header h1 {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: space-between; /* Pushes button to the right */
     gap: 10px;
     font-size: 1.5rem;
     font-weight: 600;
@@ -211,67 +212,10 @@ select:focus {
     flex-grow: 1;
     position: relative;
     background-color: #000;
-    transition: all 0.3s ease;
+    transition: all 0.3s ease; /* Smooth resize */
 }
 
 #map-display {
     width: 100%;
     height: 100%;
-}
-
-/* --- RESPONSIVE DESIGN (MOBILE ADAPTATION) --- */
-
-@media screen and (max-width: 768px) {
-    .app-container {
-        flex-direction: column;
-    }
-
-    .sidebar {
-        width: 100%;
-        height: auto;
-        max-height: 40vh;
-        padding: 15px;
-        overflow-y: auto;
-    }
-
-    /* 3. Handle the "Closed" state on mobile */
-    #sidebar.close {
-        width: 100%;
-        height: 60px;
-        padding: 10px 20px;
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    /* Fix Header layout when collapsed on mobile */
-    #sidebar.close .header {
-        margin-bottom: 0;
-        width: 100%;
-    }
-
-    #sidebar.close .header h1 {
-        margin: 0;
-        font-size: 1.2rem;
-    }
-
-    /* 4. Adjust Controls for smaller touch targets */
-    .header {
-        margin-bottom: 20px;
-    }
-
-    .header h1 {
-        font-size: 1.2rem;
-    }
-
-    /* Make the buttons easier to tap */
-    .btn-navigate {
-        padding: 12px;
-    }
-
-    /* 5. Map takes remaining space */
-    .map-wrapper {
-        width: 100%;
-        height: 100%;
-    }
 }
