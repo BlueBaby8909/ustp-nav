@@ -6,20 +6,15 @@ import geopandas as gpd
 
 app = Flask(__name__)
 
-# --- GLOBAL SETUP ---
 print("Initializing Map Data... (This takes a few seconds)")
 PLACE_NAME = "University of Science and Technology of Southern Philippines"
 
-# 1. Load the Graph (The walking network)
 G = ox.graph_from_place(PLACE_NAME, network_type="walk")
 
-# 2. Load Buildings (For dropdowns & destinations)
 buildings_gdf = ox.features_from_place(PLACE_NAME, tags={"building": True})
 available_buildings = sorted(buildings_gdf['name'].dropna().unique().tolist())
 
-# 3. CREATE CAMPUS BOUNDARY (Visuals & Camera Lock)
 try:
-    # Attempt to fetch official boundary
     campus_area_gdf = ox.geocode_to_gdf(PLACE_NAME)
     geom_type = campus_area_gdf.geometry.iloc[0].geom_type
 
