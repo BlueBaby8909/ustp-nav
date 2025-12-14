@@ -6,14 +6,32 @@ import geopandas as gpd
 
 app = Flask(__name__)
 
+# --- GLOBAL SETUP ---
 print("Initializing Map Data... (This takes a few seconds)")
 PLACE_NAME = "University of Science and Technology of Southern Philippines"
 
+# 1. Load the Graph (The walking network)
 G = ox.graph_from_place(PLACE_NAME, network_type="walk")
 
-buildings_gdf = ox.features_from_place(PLACE_NAME, tags={"building": True})
-available_buildings = sorted(buildings_gdf['name'].dropna().unique().tolist())
+# 2. Load Buildings AND Entrances
+tags = {"building": True, "entrance": True}
+all_features = ox.features_from_place(PLACE_NAME, tags=tags)
 
+# Filter: Buildings are polygons with names
+buildings_gdf = all_features[all_features["building"].notna() & all_features["name"].notna()]
+available_buildings = sorted(buildings_gdf['name'].unique().tolist())
+
+# Filter: Entrances are nodes/points
+entrances_gdf = all_features[all_features["entrance"].notna()]
+
+if not entrances_gdf.empty:
+    entrances_proj = entrances_gdf.to_crs(epsg=3857)
+else:
+    entrances_proj = entrances_gdf  # Empty
+
+buildings_proj = buildings_gdf.to_crs(epsg=3857)
+
+# 3. CREATE CAMPUS BOUNDARY (Visuals & Camera Lock)
 try:
     campus_area_gdf = ox.geocode_to_gdf(PLACE_NAME)
     geom_type = campus_area_gdf.geometry.iloc[0].geom_type
@@ -37,7 +55,6 @@ center_lon = (min_lon + max_lon) / 2
 
 # --- HELPER: GENERATE MAP ---
 def create_map(route=None, start_point=None, end_point=None, start_name=None, end_name=None, route_coords=None):
-    # Initialize Map
     m = folium.Map(
         location=[center_lat, center_lon],
         zoom_start=18,
@@ -47,34 +64,19 @@ def create_map(route=None, start_point=None, end_point=None, start_name=None, en
         min_lon=min_lon - 0.002, max_lon=max_lon + 0.002
     )
 
-    # Add Campus Highlight Layer
+    # Campus Highlight
     folium.GeoJson(
         campus_area,
-        style_function=lambda x: {
-            'fillColor': '#1e1e1e',
-            'color': '#00e676',  # Neon Green Border
-            'weight': 2,
-            'dashArray': '5, 5',
-            'fillOpacity': 0.3
-        }
+        style_function=lambda x: {'fillColor': '#1e1e1e', 'color': '#00e676', 'weight': 2, 'dashArray': '5, 5',
+                                  'fillOpacity': 0.3}
     ).add_to(m)
 
-    # Add Interactive Buildings Layer
-    named_buildings = buildings_gdf[buildings_gdf['name'].notna()]
+    # Buildings
     folium.GeoJson(
-        named_buildings,
+        buildings_gdf,
         name="Buildings",
-        style_function=lambda x: {
-            'fillColor': '#C0C0C0',  # Silver
-            'color': '#808080',  # Grey Border
-            'weight': 1,
-            'fillOpacity': 0.6
-        },
-        highlight_function=lambda x: {
-            'fillColor': '#ffffff',  # White on hover
-            'weight': 2,
-            'fillOpacity': 0.9
-        },
+        style_function=lambda x: {'fillColor': '#C0C0C0', 'color': '#808080', 'weight': 1, 'fillOpacity': 0.6},
+        highlight_function=lambda x: {'fillColor': '#ffffff', 'weight': 2, 'fillOpacity': 0.9},
         tooltip=folium.GeoJsonTooltip(
             fields=['name'],
             aliases=['Building:'],
@@ -82,21 +84,47 @@ def create_map(route=None, start_point=None, end_point=None, start_name=None, en
         )
     ).add_to(m)
 
-    # Draw Route (if provided)
+    # Route
     if route and route_coords:
         folium.PolyLine(route_coords, color="#00e676", weight=5, opacity=0.9).add_to(m)
-
-        folium.Marker(
-            [start_point.y, start_point.x], popup=f"Start: {start_name}",
-            icon=folium.Icon(color="green", icon="play", prefix='fa')
-        ).add_to(m)
-
-        folium.Marker(
-            [end_point.y, end_point.x], popup=f"End: {end_name}",
-            icon=folium.Icon(color="red", icon="stop", prefix='fa')
-        ).add_to(m)
+        folium.Marker([start_point.y, start_point.x], popup=f"Start: {start_name}",
+                      icon=folium.Icon(color="green", icon="play", prefix='fa')).add_to(m)
+        folium.Marker([end_point.y, end_point.x], popup=f"End: {end_name}",
+                      icon=folium.Icon(color="red", icon="stop", prefix='fa')).add_to(m)
 
     return m
+
+
+# --- HELPER: FIND BEST LOCATION (Entrance vs Centroid) ---
+def get_location_point(building_name):
+    """
+    Finds the best coordinate for a building.
+    Priority 1: Nearest OSM 'entrance' node (calculated in Meters).
+    Priority 2: The building's centroid (backup).
+    """
+    # 1. Get Original Geometry (Lat/Lon) - Needed for the final map/route
+    b_row = buildings_gdf[buildings_gdf["name"] == building_name].iloc[0]
+    target_point = b_row.geometry.centroid
+
+    # 2. Get Projected Geometry (Meters) - Needed for math/distance check
+    # We find the matching row in the projected dataset
+    b_row_proj = buildings_proj[buildings_proj["name"] == building_name].iloc[0]
+    b_geom_proj = b_row_proj.geometry
+
+    # 3. Check for Entrances
+    if not entrances_proj.empty:
+        # Calculate distance in METERS (Accurate)
+        distances = entrances_proj.distance(b_geom_proj)
+        min_dist = distances.min()
+        closest_idx = distances.idxmin()
+
+        # Threshold: 60 meters (Approx standard building setback)
+        if min_dist < 60:
+            # Important: We grab the geometry from the ORIGINAL (Lat/Lon) dataset
+            # because our map and graph are still in Lat/Lon.
+            target_point = entrances_gdf.loc[closest_idx].geometry
+
+    return target_point
 
 
 print("Server Ready!")
@@ -121,37 +149,29 @@ def navigate():
         if start_name == end_name:
             return jsonify({'error': "Start and Destination cannot be the same."}), 400
 
-        # 1. Find Building Locations
-        origin_row = buildings_gdf[buildings_gdf["name"] == start_name].iloc[0]
-        dest_row = buildings_gdf[buildings_gdf["name"] == end_name].iloc[0]
+        # 1. Find Best Locations
+        orig_point = get_location_point(start_name)
+        dest_point = get_location_point(end_name)
 
-        orig_point = origin_row.geometry.centroid
-        dest_point = dest_row.geometry.centroid
-
-        # 2. Find Nearest Nodes
+        # 2. Find Nearest Network Nodes
         orig_node = ox.nearest_nodes(G, orig_point.x, orig_point.y)
         dest_node = ox.nearest_nodes(G, dest_point.x, dest_point.y)
 
-        # 3. Calculate Path (The Nodes)
+        # 3. Calculate Path
         route = nx.shortest_path(G, orig_node, dest_node, weight='length')
 
-        # 4. EXTRACT PRECISE GEOMETRY (The Curves)
+        # 4. Extract Geometry
         route_coords = []
-
-        # Add the starting node explicitly first
         start_node_y = G.nodes[route[0]]['y']
         start_node_x = G.nodes[route[0]]['x']
         route_coords.append((start_node_y, start_node_x))
 
-        # Loop through edges to find geometry
         for u, v in zip(route[:-1], route[1:]):
             edge_data = G.get_edge_data(u, v)[0]
-
             if 'geometry' in edge_data:
                 geo_coords = [(lat, lon) for lon, lat in edge_data['geometry'].coords]
                 route_coords.extend(geo_coords)
             else:
-                # If straight line, just add the next node's coordinates
                 node_y = G.nodes[v]['y']
                 node_x = G.nodes[v]['x']
                 route_coords.append((node_y, node_x))
